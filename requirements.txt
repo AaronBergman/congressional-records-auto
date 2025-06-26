@@ -1,0 +1,6 @@
+pandas
+numpy
+tiktoken
+beautifulsoup4
+lxml
+html2text
