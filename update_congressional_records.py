@@ -9,7 +9,7 @@ import requests
 import os
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone  # Added timezone import
 from pathlib import Path
 from tqdm import tqdm
 import sys
@@ -352,9 +352,9 @@ def fetch_recent_issues(downloader, start_date=None):
     offset = 0
     limit = 250  # Max allowed by API
     
-    # If no start_date provided, use 2014
+    # If no start_date provided, use 2014 with timezone
     if start_date is None:
-        start_date = datetime(2014, 1, 1)
+        start_date = datetime(2014, 1, 1, tzinfo=timezone.utc)  # Fixed: Added timezone
     
     while True:
         url = "https://api.congress.gov/v3/daily-congressional-record"
