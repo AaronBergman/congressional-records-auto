@@ -36,7 +36,7 @@ jobs:
     - name: Download current state from B2
       run: |
         # Download only the issues file (small)
-        b2 file download congressional-records all_issues.json ./all_issues.json || echo "{}" > all_issues.json
+        b2 file download congressional-records all_issues.json ./all_issues.json || echo "[]" > all_issues.json
         
         # Create empty directory structure
         mkdir -p congressional_records
