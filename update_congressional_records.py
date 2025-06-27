@@ -9,7 +9,7 @@ import requests
 import os
 import json
 import time
-from datetime import datetime, timezone  # Added timezone import
+from datetime import datetime, timezone, timedelta  # Added timedelta import
 from pathlib import Path
 from tqdm import tqdm
 import sys
@@ -344,17 +344,18 @@ def load_api_keys(filename='congressional_api_keys.txt'):
         print("Using single API key from environment variable")
         return [api_key]
 
-def fetch_recent_issues(downloader, start_date=None):
+def fetch_recent_issues(downloader, start_date=None, days_back=14):
     """Fetch recent Congressional Record issues from the API."""
-    print("Fetching recent Congressional Record issues...")
+    print(f"Fetching Congressional Record issues from the last {days_back} days...")
     
     all_issues = []
     offset = 0
     limit = 250  # Max allowed by API
     
-    # If no start_date provided, use 2014 with timezone
+    # If no start_date provided, use days_back from today
     if start_date is None:
-        start_date = datetime(2014, 1, 1, tzinfo=timezone.utc)  # Fixed: Added timezone
+        start_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        print(f"Checking for issues since: {start_date.date()}")
     
     while True:
         url = "https://api.congress.gov/v3/daily-congressional-record"
@@ -451,6 +452,9 @@ def update_issues_file(downloader, existing_issues_file='all_issues.json'):
 
 def main():
     """Main function to update Congressional Records downloads."""
+    # Configuration: How many days back to check
+    DAYS_TO_CHECK = 14  # Adjust this as needed
+    
     # Load API keys
     api_keys = load_api_keys()
     
@@ -467,24 +471,26 @@ def main():
     
     print(f"\nTotal issues in database: {len(all_issues)}")
     
-    # Filter for issues from 2014 onwards
-    issues_2014_onwards = []
+    # Filter for recent issues only (within our check window)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=DAYS_TO_CHECK)
+    recent_issues = []
+
     for issue in all_issues:
         issue_date = datetime.fromisoformat(issue['issueDate'].replace('Z', '+00:00'))
-        if issue_date.year >= 2014:
-            issues_2014_onwards.append(issue)
+        if issue_date >= cutoff_date:
+            recent_issues.append(issue)
     
     # Sort by date in REVERSE chronological order (newest first)
-    issues_2014_onwards.sort(key=lambda x: x['issueDate'], reverse=True)
+    recent_issues.sort(key=lambda x: x['issueDate'], reverse=True)
     
     print(f"\nStep 2: Checking for new articles to download...")
-    print(f"Found {len(issues_2014_onwards)} issues from 2014 onwards")
+    print(f"Found {len(recent_issues)} issues from the last {DAYS_TO_CHECK} days")
     print(f"Will stop after finding {3} consecutive fully-downloaded issues")
     
     # Show date range
-    if issues_2014_onwards:
-        newest_date = issues_2014_onwards[0]['issueDate'][:10]
-        oldest_date = issues_2014_onwards[-1]['issueDate'][:10]
+    if recent_issues:
+        newest_date = recent_issues[0]['issueDate'][:10]
+        oldest_date = recent_issues[-1]['issueDate'][:10]
         print(f"Date range: {newest_date} (newest) to {oldest_date} (oldest)")
     
     # Create output directory
@@ -500,8 +506,8 @@ def main():
     total_new_downloads = 0
     issues_processed = 0
     
-    with tqdm(total=len(issues_2014_onwards), unit="issue") as pbar:
-        for issue in issues_2014_onwards:
+    with tqdm(total=len(recent_issues), unit="issue") as pbar:
+        for issue in recent_issues:
             try:
                 newly_downloaded, should_stop = updater.process_issue(issue, output_dir, pbar)
                 total_new_downloads += newly_downloaded
