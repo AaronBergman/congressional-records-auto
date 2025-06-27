@@ -3,3 +3,4 @@ env/
 *.pyc
 __pycache__/congressional_records/
 *.html
+congressional_api_keys.txt
