@@ -1,0 +1,75 @@
+name: Update Congressional Records to B2
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Daily at 2 AM EST
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  update-to-b2:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository (scripts only)
+      uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        pip install requests tqdm b2sdk
+    
+    - name: Install B2 CLI
+      run: |
+        pip install b2
+    
+    - name: Configure B2
+      env:
+        B2_APPLICATION_KEY_ID: ${{ secrets.B2_APPLICATION_KEY_ID }}
+        B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      run: |
+        b2 account authorize $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
+    
+    - name: Download current state from B2
+      run: |
+        # Download only the issues file (small)
+        b2 file download congressional-records all_issues.json ./all_issues.json || echo "{}" > all_issues.json
+        
+        # Create empty directory structure
+        mkdir -p congressional_records
+    
+    - name: Create API keys file
+      run: echo "${{ secrets.CONGRESSIONAL_API_KEY }}" > congressional_api_keys.txt
+    
+    - name: Run update script
+      run: python update_congressional_records.py
+    
+    - name: Sync to B2
+      run: |
+        # Sync new files to B2
+        b2 sync ./congressional_records b2://congressional-records/congressional_records
+        
+        # Upload updated issues file
+        b2 file upload congressional-records all_issues.json all_issues.json --noProgress
+    
+    - name: Generate and upload index
+      run: |
+        # List all files and create summary
+        b2 ls congressional-records --recursive > b2_contents.txt || true
+        
+        # Create summary
+        echo "Last updated: $(date)" > update_summary.txt
+        echo "Total files: $(wc -l < b2_contents.txt)" >> update_summary.txt
+        
+        # Upload summary
+        b2 file upload congressional-records update_summary.txt update_summary.txt --noProgress
+        
+        # Commit summary to repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add update_summary.txt || true
+        git commit -m "Update summary $(date +'%Y-%m-%d')" || exit 0
+        git push || true
