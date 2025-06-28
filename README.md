@@ -4,7 +4,7 @@ This repository maintains an automated collection of US Congressional Records, c
 
 ## Download
 
-**Direct download (726 MB compressed):**  
+**Direct download (~500 MB compressed):**  
 https://f004.backblazeb2.com/file/congressional-records/congressional_records_latest.zip
 
 This dataset includes congressional speeches and proceedings from the 115th-119th Congresses (2017-May 2025), updated daily.
