@@ -22,10 +22,18 @@ jobs:
     - name: Create temp directory
       run: mkdir -p temp_download
         
-    - name: Download current data
+    - name: Download congressional data only
       run: |
-        echo "Downloading current congressional records..."
-        b2 sync --threads 20 b2://congressional-records temp_download/
+        echo "Downloading congressional records (congress_* folders only)..."
+        # Download each congress folder separately to avoid getting other files
+        for congress in congress_115 congress_116 congress_117 congress_118 congress_119; do
+          echo "Downloading $congress..."
+          b2 sync --threads 20 b2://congressional-records/$congress temp_download/$congress
+        done
+        
+        # Also download the metadata files
+        b2 file download b2://congressional-records/all_issues.json temp_download/all_issues.json
+        b2 file download b2://congressional-records/sample_small.csv temp_download/sample_small.csv || true
         
     - name: Create archive
       run: |
