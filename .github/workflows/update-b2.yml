@@ -36,7 +36,11 @@ jobs:
     - name: Download current state from B2
       run: |
         # Download only the issues file (small)
-        b2 file download congressional-records all_issues.json ./all_issues.json || echo "[]" > all_issues.json
+        b2 ls b2://congressional-records all_issues.json || echo "all_issues.json not found in B2"
+        b2 file download b2://congressional-records/all_issues.json ./all_issues.json || echo "[]" > all_issues.json
+        
+        # Show what we got
+        echo "Issues file size: $(wc -c < all_issues.json) bytes"
         
         # Create empty directory structure
         mkdir -p congressional_records
@@ -53,7 +57,7 @@ jobs:
         b2 sync ./congressional_records b2://congressional-records/congressional_records
         
         # Upload updated issues file
-        b2 file upload congressional-records all_issues.json all_issues.json --noProgress
+        b2 file upload congressional-records all_issues.json all_issues.json
     
     - name: Generate and upload index
       run: |
@@ -65,7 +69,7 @@ jobs:
         echo "Total files: $(wc -l < b2_contents.txt)" >> update_summary.txt
         
         # Upload summary
-        b2 file upload congressional-records update_summary.txt update_summary.txt --noProgress
+        b2 file upload congressional-records update_summary.txt update_summary.txt
         
         # Commit summary to repo
         git config user.name "GitHub Actions"
