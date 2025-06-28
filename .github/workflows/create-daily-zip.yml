@@ -1,0 +1,53 @@
+name: Create Daily ZIP Archive
+
+on:
+  schedule:
+    # Run at 3 AM EST (after the update job completes)
+    - cron: '0 8 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  create-archive:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install B2 CLI
+      run: |
+        sudo pip install b2
+        
+    - name: Configure B2
+      run: |
+        b2 account authorize ${{ secrets.B2_APPLICATION_KEY_ID }} ${{ secrets.B2_APPLICATION_KEY }}
+        
+    - name: Create temp directory
+      run: mkdir -p temp_download
+        
+    - name: Download current data
+      run: |
+        echo "Downloading current congressional records..."
+        b2 sync --threads 20 b2://congressional-records temp_download/
+        
+    - name: Create archive
+      run: |
+        echo "Creating archive: congressional_records_latest.zip"
+        cd temp_download
+        zip -r ../congressional_records_latest.zip . -q
+        cd ..
+        ls -lh congressional_records_latest.zip
+        
+    - name: Upload archive to B2
+      run: |
+        # Upload/overwrite latest archive
+        b2 upload-file congressional-records congressional_records_latest.zip congressional_records_latest.zip
+        
+    - name: Generate download stats
+      run: |
+        cat > download_stats.json << EOF
+        {
+          "last_updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "file_size_mb": $(du -m congressional_records_latest.zip | cut -f1),
+          "archive_url": "https://f004.backblazeb2.com/file/congressional-records/congressional_records_latest.zip"
+        }
+        EOF
+        
+        b2 upload-file congressional-records download_stats.json download_stats.json
