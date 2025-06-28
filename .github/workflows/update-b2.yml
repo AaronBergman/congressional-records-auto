@@ -53,8 +53,8 @@ jobs:
     
     - name: Sync to B2
       run: |
-        # Sync new files to B2
-        b2 sync ./congressional_records b2://congressional-records/congressional_records
+        # Sync new files to B2 (notice the trailing slash on source)
+        b2 sync ./congressional_records/ b2://congressional-records/
         
         # Upload updated issues file
         b2 file upload congressional-records all_issues.json all_issues.json
